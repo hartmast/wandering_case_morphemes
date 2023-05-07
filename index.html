@@ -359,6 +359,62 @@ display: none;
 </div>
 
 
+<div id="preliminaries" class="section level2">
+<h2>Preliminaries</h2>
+<p>This chunk of code loads some packages and defines helper
+functions.</p>
+<pre class="r"><code>knitr::opts_chunk$set(echo = TRUE)
+
+# install CRAN packages (if not yet installed)
+sapply(c(&quot;data.table&quot;, &quot;tidyverse&quot;, &quot;devtools&quot;, &quot;party&quot;, &quot;Hmisc&quot;, &quot;rms&quot;, &quot;RColorBrewer&quot;, &quot;readxl&quot;), function(x) 
+  if(!is.element(x, installed.packages())) install.packages(x, dependencies = T))
+
+# install non-CRAN packages (if not yet installed)
+if(!is.element(&quot;wizard&quot;, installed.packages())) {
+  devtools::install_github(&quot;hartmast/wizard&quot;)
+}
+
+# load packages
+library(tidyverse)
+library(data.table)
+library(wizard)
+library(party)
+library(Hmisc)
+library(rms)
+library(RColorBrewer)
+library(readxl)
+
+# quick barplot function
+qbarplot2 &lt;- function(df, ..., color = c(&quot;Blues&quot;, F), angle = 0) {
+  
+  if(missing(color)) { color = &quot;Blues&quot;  }
+  
+  p &lt;- qbarplot(df, cex = 5, ...) + theme_bw() +
+    theme(axis.text = element_text(size = 18)) +
+    theme(axis.title = element_text(size = 18)) +
+    theme(strip.text = element_text(size = 18)) +
+    theme(legend.text = element_text(size = 18)) +
+    theme(legend.title = element_text(size = 18, face = &quot;bold&quot;)) +
+    theme(text = element_text(size = 18))
+  
+  if(angle!=0) {
+    p &lt;- p + theme(axis.text.y = element_text(size = 18)) +
+      theme(axis.text.x = element_text(angle = angle, size = 18,hjust = .9))
+  } else {
+    if(angle!=0) {
+     p &lt;- p + theme(axis.text = element_text(size = 18))
+    }
+  }
+  
+  
+  if(color == &quot;Blues&quot;) {
+    p &lt;- p + scale_fill_brewer(&quot;Blues&quot;)
+  }
+  
+  return(p)
+    
+}</code></pre>
+</div>
 <div id="read-data" class="section level2">
 <h2>Read data</h2>
 <p>This code reads and binds the data:</p>
@@ -626,7 +682,7 @@ s2a$PredFOREST &lt;- sapply(s2.trp, FUN = function(v)return(v[2]))
 s2a$s_los_bin &lt;- (s2a$s_los==&quot;s-los&quot;) + 0
 somers2(s2a$PredFOREST, s2a$s_los_bin)</code></pre>
 <pre><code>##            C          Dxy            n      Missing 
-##    0.9476088    0.8952176 2656.0000000    0.0000000</code></pre>
+##    0.9475684    0.8951368 2656.0000000    0.0000000</code></pre>
 <pre class="r"><code># wegen(s) -------------------------------
 
 # ctree
@@ -649,7 +705,7 @@ s2b$PredFOREST &lt;- sapply(s2.trp, FUN = function(v)return(v[2]))
 s2b$s_los_bin &lt;- (s2b$s_los==&quot;s-los&quot;) + 0
 somers2(s2b$PredFOREST, s2b$s_los_bin)</code></pre>
 <pre><code>##           C         Dxy           n     Missing 
-##   0.8344169   0.6688339 315.0000000   0.0000000</code></pre>
+##   0.8383554   0.6767108 315.0000000   0.0000000</code></pre>
 </div>
 
 

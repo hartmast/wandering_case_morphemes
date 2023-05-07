@@ -3,12 +3,17 @@ title: "wandering_morphemes"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+## Preliminaries
+
+This chunk of code loads some packages and defines helper functions.
+
+```{r setup, warning = FALSE, message = FALSE, results = 'hide'}
 knitr::opts_chunk$set(echo = TRUE)
 
 # install CRAN packages (if not yet installed)
 sapply(c("data.table", "tidyverse", "devtools", "party", "Hmisc", "rms", "RColorBrewer", "readxl"), function(x) 
   if(!is.element(x, installed.packages())) install.packages(x, dependencies = T))
+
 # install non-CRAN packages (if not yet installed)
 if(!is.element("wizard", installed.packages())) {
   devtools::install_github("hartmast/wizard")
