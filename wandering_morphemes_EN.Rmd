@@ -1,0 +1,311 @@
+---
+title: "wandering_morphemes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# install CRAN packages (if not yet installed)
+sapply(c("data.table", "tidyverse", "devtools", "party", "Hmisc", "rms", "RColorBrewer"), function(x) 
+  if(!is.element(x, installed.packages())) install.packages(x, dependencies = T))
+# install non-CRAN packages (if not yet installed)
+if(!is.element("wizard", installed.packages())) {
+  devtools::install_github("hartmast/wizard")
+}
+
+# load packages
+library(tidyverse)
+library(data.table)
+library(wizard)
+library(party)
+library(Hmisc)
+library(rms)
+library(RColorBrewer)
+
+# quick barplot function
+qbarplot2 <- function(df, ..., color = c("Blues", F), angle = 0) {
+  
+  if(missing(color)) { color = "Blues"  }
+  
+  p <- qbarplot(df, cex = 5, ...) + theme_bw() +
+    theme(axis.text = element_text(size = 18)) +
+    theme(axis.title = element_text(size = 18)) +
+    theme(strip.text = element_text(size = 18)) +
+    theme(legend.text = element_text(size = 18)) +
+    theme(legend.title = element_text(size = 18, face = "bold")) +
+    theme(text = element_text(size = 18))
+  
+  if(angle!=0) {
+    p <- p + theme(axis.text.y = element_text(size = 18)) +
+      theme(axis.text.x = element_text(angle = angle, size = 18,hjust = .9))
+  } else {
+    if(angle!=0) {
+     p <- p + theme(axis.text = element_text(size = 18))
+    }
+  }
+  
+  
+  if(color == "Blues") {
+    p <- p + scale_fill_brewer("Blues")
+  }
+  
+  return(p)
+    
+}
+
+```
+
+## Session info (for reproducability)
+
+```{r seesioninfo}
+
+sessionInfo()
+
+```
+
+## Read data
+
+This code reads and binds the data:
+
+```{r data, message = FALSE, warning = FALSE, echo = TRUE, results = 'hide'}
+
+# read data
+ws <- read_csv("wegens/wegens_DECOW16BX_anno.csv")
+ws <- mutate(ws, cxn = "wegens")
+w0 <- read_csv("wegens/wegen_sample_DECOW16BX_anno.csv")
+w0 <- mutate(w0, cxn = "wegen")
+uws <- read_csv("willens/um_willens_DECOW16B.csv")
+uws <- mutate(uws, cxn = "willens")
+uw0 <- read_csv("willens/um_willen_DECOW16B_sample.csv")
+uw0 <- mutate(uw0, cxn = "willen")
+
+# add empty position column for willens (so that rbind works in the next step)
+uws <- mutate(uws, position = NA)
+uw0 <- mutate(uw0, position = NA)
+
+# bind all together
+w <- rbind(uws, uw0, ws, w0)
+
+
+
+```
+
+
+## Gender distribution
+
+This code plots the distribution of grammatical genders in the data:
+
+```{r genders, out.width = '50%', warning = FALSE}
+
+# distinction between strong and weak masculines
+w$class <- NA
+w[which(w$Gender %in% c("m", "n") & w$s_less=="x" & w$Number=="sg"),]$class <- "weak"
+w[which(is.na(w$class)),]$class <- "not_weak"
+
+# willen(s)
+w %>% filter(cxn %in% c("willens", "willen")) %>%
+  filter(Gender %in% c("f", "m", "n")) %>%
+  qbarplot2(cxn, Gender,
+                                                            ylab = "Relative Frequency", xlab = "Variant") + guides(fill = guide_legend(title = "Gender"))
+
+
+# for types rather than tokens
+willen_s <- filter(w, cxn %in% c("willens", "willen"))
+willen_s[!duplicated(willen_s$lemma),] %>%
+    filter(Gender %in% c("f", "m", "n")) %>%
+  qbarplot2(cxn, Gender,
+                                                            ylab = "Relative Frequenz (Types)", xlab = "Variante") + guides(fill = guide_legend(title = "Genus"))
+
+
+# wegen(s)
+w %>% filter(cxn %in% c("wegen", "wegens") & position=="post") %>%
+  filter(Gender %in% c("f", "m", "n")) %>%
+  qbarplot2(cxn, Gender,
+                                                            ylab = "Relative Frequency", xlab = "Variant") + guides(fill = guide_legend(title = "Gender"))
+
+# for types rather than tokens
+# wegen_s <- filter(w, cxn %in% c("wegen", "wegens") & position=="post")
+# wegen_s[!duplicated(wegen_s$lemma),] %>%
+#     filter(Gender %in% c("f", "m", "n")) %>%
+#   qbarplot2(cxn, Gender,
+#                                                             ylab = "Relative Frequenz (Types)", xlab = "Variante") + guides(fill = guide_legend(title = "Genus"))
+
+
+# only singulars - distinction weak masculines vs. others ---
+
+# add Genus column with distinction between weak and strong nouns
+w$Genus <- ifelse(w$Gender=="m" & w$class=="weak", "Masc. weak", w$Gender)
+w$Genus <- ifelse(w$Gender=="m" & w$class!="weak", "Masc. strong/mixed", w$Genus)
+w$Genus <- ifelse(w$Genus=="f", "Feminine", w$Genus)
+w$Genus <- ifelse(w$Genus=="n", "Neuter", w$Genus)
+
+# willen(s)
+w %>% filter(cxn %in% c("willen", "willens") & Number=="sg" & Gender %in% c("m", "f", "n")) %>%
+  qbarplot2(cxn, Genus, ylab = "Relative Frequency", xlab = "Variant") + 
+  guides(fill = guide_legend(title = "Gender"))
+# ggsave("gender_distribution_willens_EN.png")
+
+# same for types rather than tokens
+# willen_s <- filter(w, cxn %in% c("willens", "willen"))
+# willen_s[!duplicated(willen_s$lemma),] %>% filter(Number=="sg" & Gender%in% c("m", "f", "n")) %>%
+#   qbarplot2(cxn, Genus, ylab = "Relative Frequenz (Types)", xlab = "Variante") + 
+#   guides(fill = guide_legend(title = "Genus"))
+
+# wegen(s)
+w %>% filter(cxn %in% c("wegen", "wegens") & Number=="sg" & Gender %in% c("m", "f", "n") & position=="post") %>%
+  qbarplot2(cxn, Genus, ylab = "Relative Frequency", xlab = "Variant") + 
+  guides(fill = guide_legend(title = "Gender"))
+# ggsave("gender_distribution_wegens_EN.png")
+
+# same for types rather than tokens
+wegen_s <- filter(w, cxn %in% c("wegen", "wegens") & position=="post")
+wegen_s[!duplicated(wegen_s$lemma),] %>% filter(Number=="sg" & Gender %in% c("m", "f", "n")) %>%   qbarplot2(cxn, Genus, ylab = "Relative Frequency, Types", xlab = "Variant") + 
+  guides(fill = guide_legend(title = "Gender"))
+# ggsave("gender_distribution_Types_wegens_EN.png")
+
+```
+
+
+## determiner distribution in wegens
+
+In wegens, we expect less determiners for the prenominal use (assuming that prenominal wegens serves as a cleft-opening element). We see that for postnominal wegen and wegens, the definite articles clearly dominates. We find much less definite articles in prenominal wegen and especially wegens.
+
+```{r determiners, warning = FALSE}
+
+# binary coding for determiners
+w$Det <- ifelse(w$Determiner=="none", "with determiner", "without determiner")
+
+# factor coding for determiners
+# w$Determiner <- factor(w$Determiner, levels = rev(c("none", levels(factor(w$Determiner))[-which(levels(factor(w$Determiner))=="none"|is.na(levels(factor(w$Determiner))))])))
+# 
+# w %>% filter(cxn %in% c("wegen", "wegens")) %>% filter(position!="both") %>% qbarplot2(cxn, Det, position, wrap100=T)
+# 
+# w %>% filter(cxn %in% c("wegen", "wegens")) %>% filter(position!="both" & Determiner!="unclear") %>% qbarplot2(cxn, Determiner, position, wrap100=T, color = F)
+
+```
+
+
+## Number distribution
+
+In plurals, there's no genitive-s that could move. So if we are actually dealing with "wandering" case morphemes, we would expect plurals to be rarer in the wegens/willens datasets than in the canonical comparison data.
+
+
+```{r number, warning = FALSE}
+
+w %>% filter(cxn %in% c("willens", "willen")) %>% qbarplot2(cxn, Number)
+w %>% filter(cxn %in% c("wegens", "wegen") & position=="post") %>% qbarplot2(cxn, Number)
+
+
+```
+
+## with or without s?
+
+```{r sless, warning = FALSE, out.width='50%', warning = FALSE}
+w$s_less <- as.character(w$s_less)
+w$s_less <- ifelse(w$s_less=="y", "without s", w$s_less)
+w$s_less <- ifelse(w$s_less=="n", "with s", w$s_less)
+
+w %>% filter(cxn %in% c("willen", "willens")) %>%
+  filter(s_less %in% c("with s", "without s")) %>%
+  qbarplot2(cxn, s_less, ylab="Relative Frequency", xlab="Variant") +
+  guides(fill = guide_legend(title = "Genitive \nwith/\nwithout s")) +
+  scale_fill_manual(values = brewer.pal(9, "Blues")[c(4,6,8)]) 
+# ggsave("willens_sless_genitives_EN.png")
+
+w %>% filter(cxn %in% c("wegen", "wegens") & position=="post") %>%
+  filter(s_less %in% c("with s", "without s")) %>%
+  qbarplot2(cxn, s_less, ylab="Relative Frequency", xlab="Variant") +
+  guides(fill = guide_legend(title = "Genitive \nwith/\nwithout s")) +
+  scale_fill_manual(values = brewer.pal(9, "Blues")[c(4,6,8)]) 
+# ggsave("wegens_sless_genitives_EN.png")
+
+```
+
+
+## Random Forest
+
+```{r forest, out.width='50%', warning = FALSE}
+
+# subset with strong masculines and neuters
+s <- filter(w, s_less %in% c("with s", "without s") & case=="gen" & !is.na(Freq))
+
+# convert categorical columns to factors
+cols <- c("s_less", "cxn", "monoref", "forum", "abbreviation")
+s[cols] <- lapply(s[cols], as.factor)
+
+# add apposition column
+s$app <- ifelse(s$NP_ext=="app", "y", "n")
+s$app <- factor(s$app)
+
+# add binary proper name column
+s$name <- factor(ifelse(s$Proper_name!="n", "y", "n"))
+
+# willen(s)
+s2 <- select(s, s_less, cxn, monoref, name, app, Freq, pn_or_acro_or_nonnative_in_s, abbreviation, position)
+
+# use more intuitive names
+colnames(s2) <- c("s_less", "Variant", "Monoreference", "Proper_name", "Apposition", "Frequency", "Need_for_conservation_s", "Short_word", "Position")
+
+# replace NAs
+s2 <- replace_na(s2, list(Need_for_conservation_s = "n"))
+s2$Need_for_conservation_s <- factor(s2$Need_for_conservation_s)
+
+
+# log frequency
+s2$LogFreq <- log(s2$Frequency)
+
+# input for trees
+s2a <- filter(s2, Variant %in% c("willens", "willen"))
+s2b <- filter(s2, Variant %in% c("wegens", "wegen") & Position=="post")
+
+
+
+# willen(s) -------------------------------------
+
+# ctree
+stree <- ctree(s_less ~ Variant + Monoreference + Apposition + Proper_name + Short_word + Need_for_conservation_s + LogFreq, data = s2a)
+
+# png("willens_tree_EN.png", width = 10, height = 6, un = "in", res = 300)
+plot(stree)
+# dev.off()
+
+
+# random forest
+sforest <- cforest(s_less ~ Variant + Monoreference + Apposition + Proper_name + Short_word + Need_for_conservation_s + LogFreq, data = s2a)
+
+
+# get index of concordance - code
+# adapted from Tagliamonte & Baayen 2012
+s2.trp = treeresponse(sforest)
+s2a$PredFOREST <- sapply(s2.trp, FUN = function(v)return(v[2]))
+s2a$s_less_bin <- (s2a$s_less=="without s") + 0
+somers2(s2a$PredFOREST, s2a$s_less_bin)
+
+
+# wegen(s) -------------------------------
+
+# ctree
+stree <- ctree(s_less ~ Variant + Monoreference + Apposition + Proper_name + Short_word + Need_for_conservation_s + LogFreq, data = s2b)
+
+# png("wegens_tree_EN.png", width = 7.5, height = 5, un = "in", res = 300)
+plot(stree)
+# dev.off()
+
+
+# random forest
+sforest <- cforest(s_less ~ Variant + Monoreference + Apposition + Proper_name + Short_word + Need_for_conservation_s + LogFreq, data = s2b)
+
+
+# get index of concordance - code
+# adapted from Tagliamonte & Baayen 2012
+s2.trp = treeresponse(sforest)
+s2b$PredFOREST <- sapply(s2.trp, FUN = function(v)return(v[2]))
+s2b$s_less_bin <- (s2b$s_less=="without s") + 0
+somers2(s2b$PredFOREST, s2b$s_less_bin)
+
+
+```
+
+
+
